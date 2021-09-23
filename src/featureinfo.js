@@ -67,6 +67,16 @@ const Featureinfo = function Featureinfo(options = {}) {
     }
   };
 
+  const dispatchToggleFeatureEvent = function dispatchToggleFeatureEvent(currentItem) {
+    const toggleFeatureinfo = new CustomEvent('toggleFeatureinfo', {
+      detail: {
+        type: 'toggleFeatureinfo',
+        currentItem
+      }
+    });
+    document.dispatchEvent(toggleFeatureinfo);
+  };
+
   // TODO: direct access to feature and layer should be converted to getFeature and getLayer methods on currentItem
   const callback = function callback(evt) {
     const currentItemIndex = evt.item.index;
@@ -117,14 +127,7 @@ const Featureinfo = function Featureinfo(options = {}) {
       } else if (identifyTarget === 'sidebar') {
         sidebar.setTitle(title);
       }
-
-      const toggleFeatureinfo = new CustomEvent('toggleFeatureinfo', {
-        detail: {
-          type: 'toggleFeatureinfo',
-          currentItem
-        }
-      });
-      document.dispatchEvent(toggleFeatureinfo);
+      dispatchToggleFeatureEvent(currentItem);
     }
   };
 
@@ -302,6 +305,7 @@ const Featureinfo = function Featureinfo(options = {}) {
     for (let i = 0; i < modalLinks.length; i += 1) {
       addLinkListener(modalLinks[i]);
     }
+    dispatchToggleFeatureEvent(items[0]);
   };
 
   const onClick = function onClick(evt) {

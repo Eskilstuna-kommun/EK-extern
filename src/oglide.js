@@ -93,7 +93,7 @@ function OGlide(options) {
     animationDuration: 150
   });
   el.mount();
-  el.on('move', () => {
+  el.on('run.after', () => {
     callback({ item: { index: el.index, count: oiContent.length } });
   });
 }
