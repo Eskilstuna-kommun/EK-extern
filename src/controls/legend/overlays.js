@@ -140,7 +140,18 @@ const Overlays = function Overlays(options) {
     }
   };
 
-  const addLayer = function addLayer(layer, { position } = {}) {
+  const updateLegend = function updateLegend(comp) {
+    const parentName = comp.parent;
+    const parent = groupCmps.find((cmp) => cmp.name === parentName);
+    parent.dispatch('add:overlay');
+    if (parent.parent) {
+      updateLegend(parent);
+    }
+  };
+
+  const addLayer = function addLayer(layer, {
+    position
+  } = {}) {
     const styleName = layer.get('styleName') || null;
     const layerStyle = styleName ? viewer.getStyle(styleName) : undefined;
     const overlay = Overlay({
@@ -153,7 +164,13 @@ const Overlays = function Overlays(options) {
       const groupCmp = groupCmps.find((cmp) => cmp.name === groupName);
       if (groupCmp) {
         groupCmp.addOverlay(overlay);
-        document.getElementById(groupCmp.getId()).classList.remove('hidden'); // conflict with this line and following code, potential bugs
+        document.getElementById(groupCmp.getId()).classList.remove('hidden');
+
+        if (groupCmp.parent) {
+          updateLegend(groupCmp);
+        }
+      } else {
+        console.warn(`Group ${groupName} does not exist`);
       }
     }
   };
