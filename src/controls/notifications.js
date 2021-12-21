@@ -1,26 +1,12 @@
 import { io } from 'socket.io-client';
-import VectorSource from 'ol/source/Vector';
-import VectorLayer from 'ol/layer/Vector';
-import { Circle, Stroke, Style } from 'ol/style';
-import GeoJSONFormat from 'ol/format/GeoJSON';
 import { Component } from '../ui';
 
 const Notifications = function Notifications(options = {}) {
   let viewer;
-  const geoJsonStyle = new Style({
-    image: new Circle({
-      fill: null,
-      stroke: new Stroke({ color: 'blue', width: 3 }),
-      radius: 13
-    }),
-    fill: null,
-    stroke: new Stroke({ color: 'blue', width: 3 })
-  });
   return Component({
     name: 'notifications',
     onAdd(evt) {
       viewer = evt.target;
-      let vectorLayer;
       const map = viewer.getMap();
       const socket = io(options.webSocketEndpoint);
 
@@ -34,28 +20,6 @@ const Notifications = function Notifications(options = {}) {
             layer.getSource().refresh();
           }
         });
-      });
-
-      // Listen to draw-geometry event from server and add geometry to the map
-      // Work in progress
-      socket.on('draw-geometry', (data) => {
-        const format = new GeoJSONFormat({ featureProjection: viewer.getProjectionCode() });
-        const vectorSource = new VectorSource({
-          features: format.readFeatures(data.geoJson)
-        });
-        if (vectorLayer) {
-          vectorLayer.setSource(vectorSource);
-        } else {
-          vectorLayer = new VectorLayer({
-            source: vectorSource,
-            group: 'root',
-            title: data.layerTitle,
-            style: geoJsonStyle,
-            queryable: true
-          });
-
-          map.addLayer(vectorLayer);
-        }
       });
 
       this.render();
