@@ -110,9 +110,6 @@ export default function Slidenav(options = {}) {
     animateHeight(mainEl, secondaryEl);
     slidenavEl.addEventListener('transitionend', onTransitionEnd);
     this.dispatch(slideEvent);
-    if (legendSlideNav) {
-      posMem = document.getElementById('legendCollapse').scrollTop;
-    }
   };
 
   const slideToMain = function slideToMain() {
@@ -140,7 +137,8 @@ export default function Slidenav(options = {}) {
         iconCls: 'grey',
         click: () => {
           this.slideToMain();
-        }
+        },
+        tabIndex: -99
       });
       header = Component({
         onRender() {
