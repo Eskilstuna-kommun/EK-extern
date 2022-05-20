@@ -30,6 +30,8 @@
   position: absolute;
   top: 40px;
   z-index: 1;
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
 .awesomplete.black > ul {
