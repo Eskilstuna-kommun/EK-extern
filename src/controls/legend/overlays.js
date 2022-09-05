@@ -36,7 +36,7 @@ const Overlays = function Overlays(options) {
 
   const groupCmps = viewer.getGroups().reduce((acc, group) => {
     if (nonGroupNames.includes(group.name)) return acc;
-    return acc.concat(Group(group, viewer));
+    return acc.concat(Group(viewer, group));
   }, []);
 
   groupCmps.forEach((groupCmp) => {
@@ -64,7 +64,8 @@ const Overlays = function Overlays(options) {
     secondaryComponent: layerProps,
     cls: 'right flex width-100',
     style: { width: '100%' },
-    legendSlideNav: true
+    legendSlideNav: true,
+    viewer
   });
 
   const navContainer = Component({
@@ -88,7 +89,6 @@ const Overlays = function Overlays(options) {
   });
 
   const overlaysCollapse = Collapse({
-    legendCollapse: true,
     bubble: true,
     collapseX: false,
     cls: 'flex column overflow-hidden width-100',
@@ -182,7 +182,7 @@ const Overlays = function Overlays(options) {
   };
 
   const addGroup = function addGroup(groupOptions) {
-    const groupCmp = Group(groupOptions, viewer);
+    const groupCmp = Group(viewer, groupOptions);
     groupCmps.push(groupCmp);
     if (groupCmp.type === 'grouplayer') {
       const parent = groupCmps.find((cmp) => cmp.name === groupCmp.parent);
@@ -245,6 +245,7 @@ const Overlays = function Overlays(options) {
       return groupCmps;
     },
     slidenav,
+    overlaysCollapse,
     onInit() {
       this.addComponent(overlaysCollapse);
       readOverlays();

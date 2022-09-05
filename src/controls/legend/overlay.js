@@ -1,12 +1,11 @@
-import { Component, Button, dom } from '../../ui';
-import { HeaderIcon } from '../../utils/legendmaker';
+import { Component, Button, dom, Collapse } from '../../ui';
+import { HeaderIcon, Legend } from '../../utils/legendmaker';
 import PopupMenu from '../../ui/popupmenu';
+import exportToFile from '../../utils/exporttofile';
 
 const OverlayLayer = function OverlayLayer(options) {
-  let {
-    headerIconCls = ''
-  } = options;
   const {
+    headerIconCls = '',
     cls: clsSettings = '',
     icon = '#o_list_24px',
     iconCls = 'grey-lightest',
@@ -17,15 +16,20 @@ const OverlayLayer = function OverlayLayer(options) {
   } = options;
 
   const buttons = [];
+  let headerIconClass = headerIconCls;
+
   const popupMenuItems = [];
   let layerList;
 
-  const cls = `${clsSettings} flex row align-center padding-left padding-right-smaller item`.trim();
+  const hasStylePicker = viewer.getLayerStylePicker(layer).length > 0;
+  const layerIconCls = `round compact icon-small relative no-shrink light ${hasStylePicker ? 'style-picker' : ''}`;
+  const cls = `${clsSettings} flex row align-center padding-left padding-right-smaller item wrap`.trim();
   const title = layer.get('title') || 'Titel saknas';
   const name = layer.get('name');
   const secure = layer.get('secure');
   let moreInfoButton;
   let popupMenu;
+  let hasExtendedLegend = false;
 
   const checkIcon = '#ic_check_circle_24px';
   let uncheckIcon = '#ic_radio_button_unchecked_24px';
@@ -40,7 +44,8 @@ const OverlayLayer = function OverlayLayer(options) {
 
   if (!headerIcon) {
     headerIcon = icon;
-    headerIconCls = iconCls;
+    headerIconClass = iconCls;
+    hasExtendedLegend = true;
   }
 
   const eventOverlayProps = new CustomEvent('overlayproperties', {
@@ -68,16 +73,37 @@ const OverlayLayer = function OverlayLayer(options) {
     return !visible;
   };
 
+  // Create a legend for the layer and wrap it in a Collapse.
+  // Always do this even if there is no extended legend, as user may change symbol later and then its nice to have a placeholder.
+  const extendedLegendContent = Component({
+    render() {
+      // Need to wrap legend as Collapse requires an id on the content
+      return `<div id="${this.getId()}" class="padding-left">${hasExtendedLegend ? Legend(style) : ''}</div>`;
+    },
+    setContent(content) {
+      const contentEl = document.getElementById(this.getId());
+      contentEl.innerHTML = content;
+    },
+    toggle() {
+      // Throw an event and let it bubble up to Collapse
+      const contentEl = document.getElementById(this.getId());
+      const collapseEvent = 'collapse:toggle';
+      const customEvt = new CustomEvent(collapseEvent, { bubbles: true });
+      contentEl.dispatchEvent(customEvt);
+    }
+  });
+  const extendedLegendCmp = Collapse({ collapseX: false, contentComponent: extendedLegendContent, expanded: layer.get('expanded') });
+
   const layerIcon = Button({
-    cls: `${headerIconCls} round compact icon-small light relative no-shrink`,
+    cls: `${headerIconClass} ${layerIconCls}`,
     click() {
-      if (!secure) {
-        toggleVisible(layer.getVisible());
+      if (hasExtendedLegend) {
+        extendedLegendContent.toggle();
       }
     },
     style: {
-      height: '1.5rem',
-      width: '1.5rem'
+      height: 'calc(1.5rem + 2px)',
+      width: 'calc(1.5rem + 2px)'
     },
     ariaLabel: 'Lager ikon',
     icon: headerIcon,
@@ -85,20 +111,6 @@ const OverlayLayer = function OverlayLayer(options) {
   });
 
   buttons.push(layerIcon);
-
-  const label = Component({
-    onRender() {
-      const labelEl = document.getElementById(this.getId());
-      labelEl.addEventListener('click', (e) => {
-        layerIcon.dispatch('click');
-        e.preventDefault();
-      });
-    },
-    render() {
-      const labelCls = 'text-smaller padding-x-small grow pointer no-select overflow-hidden';
-      return `<div id="${this.getId()}" class="${labelCls}">${title}</div>`;
-    }
-  });
 
   const toggleButton = Button({
     cls: 'round small icon-smaller no-shrink',
@@ -117,6 +129,20 @@ const OverlayLayer = function OverlayLayer(options) {
   });
 
   buttons.push(toggleButton);
+
+  const label = Component({
+    onRender() {
+      const labelEl = document.getElementById(this.getId());
+      labelEl.addEventListener('click', (e) => {
+        toggleButton.dispatch('click');
+        e.preventDefault();
+      });
+    },
+    render() {
+      const labelCls = 'text-smaller padding-x-small grow pointer no-select overflow-hidden basis-50';
+      return `<div id="${this.getId()}" class="${labelCls}">${title}</div>`;
+    }
+  });
 
   const layerInfoMenuItem = Component({
     onRender() {
@@ -157,6 +183,42 @@ const OverlayLayer = function OverlayLayer(options) {
     popupMenuItems.push(zoomToExtentMenuItem);
   }
 
+  if (layer.get('exportable')) {
+    const exportFormat = layer.get('exportFormat') || layer.get('exportformat');
+    let exportFormatArray = [];
+    if (exportFormat && typeof exportFormat === 'string') {
+      exportFormatArray.push(exportFormat);
+    } else if (exportFormat && Array.isArray(exportFormat)) {
+      exportFormatArray = exportFormat;
+    }
+    const formats = exportFormatArray.map(format => format.toLowerCase()).filter(format => format === 'geojson' || format === 'gpx' || format === 'kml');
+    if (formats.length === 0) { formats.push('geojson'); }
+    formats.forEach((format) => {
+      const exportLayerMenuItem = Component({
+        onRender() {
+          const labelEl = document.getElementById(this.getId());
+          labelEl.addEventListener('click', (e) => {
+            const features = layer.getSource().getFeatures();
+            exportToFile(features, format, {
+              featureProjection: viewer.getProjection().getCode(),
+              filename: title || 'export'
+            });
+            e.preventDefault();
+          });
+        },
+        render() {
+          let exportLabel;
+          if (exportFormatArray.length > 1) {
+            exportLabel = `Spara lager (.${format})`;
+          } else { exportLabel = 'Spara lager'; }
+          const labelCls = 'text-smaller padding-x-small grow pointer no-select overflow-hidden';
+          return `<li id="${this.getId()}" class="${labelCls}">${exportLabel}</li>`;
+        }
+      });
+      popupMenuItems.push(exportLayerMenuItem);
+    });
+  }
+
   if (layer.get('removable')) {
     const removeLayerMenuItem = Component({
       onRender() {
@@ -189,23 +251,6 @@ const OverlayLayer = function OverlayLayer(options) {
     }
   });
 
-  const getElementOffset = function getElementOffset(el, rootParentEl) {
-    let left = 0;
-    let top = 0;
-    let currentEl = el;
-    while (
-      currentEl
-      && !Number.isNaN(currentEl.offsetLeft)
-      && !Number.isNaN(currentEl.offsetTop)
-      && currentEl.id !== rootParentEl.id
-    ) {
-      left += currentEl.offsetLeft - currentEl.scrollLeft;
-      top += currentEl.offsetTop - currentEl.scrollTop;
-      currentEl = currentEl.offsetParent;
-    }
-    return { top, left };
-  };
-
   const createPopupMenu = function createPopupMenu() {
     const moreInfoButtonEl = document.getElementById(moreInfoButton.getId());
     const onUnfocus = (e) => {
@@ -213,15 +258,14 @@ const OverlayLayer = function OverlayLayer(options) {
         popupMenu.setVisibility(false);
       }
     };
-    const viewerEl = document.getElementById(viewer.getId());
-    const { top, left } = getElementOffset(moreInfoButtonEl, viewerEl);
-    const right = viewerEl.offsetWidth - left - moreInfoButtonEl.offsetWidth;
-    const targetRect = moreInfoButtonEl.getBoundingClientRect();
-    popupMenu = PopupMenu({ onUnfocus });
-    document.getElementById(viewer.getId()).appendChild(dom.html(popupMenu.render()));
+    popupMenu = PopupMenu({ onUnfocus, cls: 'overlay-popup' });
+    const newDiv = document.createElement('div');
+    newDiv.classList.add('justify-end', 'flex', 'relative', 'basis-100');
+    moreInfoButtonEl.insertAdjacentElement('afterend', newDiv);
+    newDiv.appendChild(dom.html(popupMenu.render()));
     popupMenu.setContent(popupMenuList.render());
     popupMenuList.dispatch('render');
-    popupMenu.setPosition({ right: `${right}px`, top: `${top + targetRect.height}px` });
+    popupMenu.setVisibility(true);
   };
 
   const togglePopupMenu = function togglePopupMenu() {
@@ -254,13 +298,30 @@ const OverlayLayer = function OverlayLayer(options) {
 
   const removeOverlayMenuItem = function removeListeners() {
     const popupMenuListEl = document.getElementById(popupMenuList.getId());
-    popupMenuListEl.remove();
+    if (popupMenuListEl) { popupMenuListEl.remove(); }
   };
 
   const onRemove = function onRemove() {
     removeOverlayMenuItem();
     const el = document.getElementById(this.getId());
     el.remove();
+  };
+
+  const onLayerStyleChange = function onLayerStyleChange() {
+    const newStyle = viewer.getStyle(layer.get('styleName'));
+    const layerIconCmp = document.getElementById(layerIcon.getId());
+    let newIcon = HeaderIcon(newStyle, opacity);
+    if (!newIcon) {
+      hasExtendedLegend = true;
+      extendedLegendContent.setContent(Legend(newStyle));
+    } else {
+      hasExtendedLegend = false;
+      extendedLegendContent.setContent('');
+    }
+    headerIconClass = !newIcon ? iconCls : headerIconCls;
+    newIcon = !newIcon ? icon : newIcon;
+    layerIconCmp.className = `${headerIconClass} ${layerIconCls}`;
+    layerIcon.dispatch('change', { icon: newIcon });
   };
 
   return Component({
@@ -282,6 +343,7 @@ const OverlayLayer = function OverlayLayer(options) {
       }
       this.addComponents(buttons);
       this.addComponent(label);
+      this.addComponent(extendedLegendCmp);
       this.dispatch('render');
 
       if (layer.getMaxResolution() !== Infinity || layer.getMinResolution() !== 0) {
@@ -301,9 +363,15 @@ const OverlayLayer = function OverlayLayer(options) {
         });
         document.getElementById(this.getId()).dispatchEvent(visibleEvent);
       });
+      layer.on('change:style', () => {
+        onLayerStyleChange();
+      });
     },
     render() {
-      return `<li title="${title}" id="${this.getId()}" class="${cls}">${ButtonsHtml}</li>`;
+      let extendedLegendHtml = '';
+      // Inject the extended legend in the same li element to avoid problems with callers that assumes that each layer is one li, but add a linebreak
+      extendedLegendHtml = `<div class="flex-line-break"></div>${extendedLegendCmp.render()}`;
+      return `<li id="${this.getId()}" class="${cls}">${ButtonsHtml}${extendedLegendHtml}</li>`;
     }
   });
 };
