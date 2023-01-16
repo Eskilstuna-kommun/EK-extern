@@ -296,8 +296,8 @@ function getGetFeatureInfoRequest({ layer, coordinate }, viewer) {
 }
 
 function getFeatureInfoRequests({
-  coordinate,
-  pixel
+  coordinate
+  // pixel
 }, viewer) {
   const requests = [];
   const layerArray = [];
@@ -306,13 +306,13 @@ function getFeatureInfoRequests({
   const layers = viewer.getQueryableLayers().filter(layer => layer instanceof BaseTileLayer || layer instanceof ImageLayer);
   if (layers) { layers.forEach(element => layerArray.push(element)); }
   layerArray.forEach(layer => {
-    const pixelVal = layer.getData(pixel);
-    if (pixelVal instanceof Uint8ClampedArray && pixelVal[3] > 0) {
-      const item = getGetFeatureInfoRequest({ layer, coordinate }, viewer);
-      if (item) {
-        requests.push(item);
-      }
+    // const pixelVal = layer.getData(pixel);
+    // if (pixelVal instanceof Uint8ClampedArray && pixelVal[3] > 0) {
+    const item = getGetFeatureInfoRequest({ layer, coordinate }, viewer);
+    if (item) {
+      requests.push(item);
     }
+  //  }
   });
   return requests;
 }
