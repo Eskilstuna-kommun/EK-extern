@@ -63,7 +63,6 @@ async function getFeatureInfoUrl({
   // #region EK-specific code for FTL
   if (layer.get('infoFormat') === 'text/html') {
     let featureJson;
-    if (!layer.get('ArcGIS')) {
       const featUrl = layer.getSource().getFeatureInfoUrl(coordinate, resolution, projection, {
         INFO_FORMAT: 'application/json',
         FEATURE_COUNT: '20'
@@ -76,7 +75,7 @@ async function getFeatureInfoUrl({
       }).then(json => {
         featureJson = maputils.geojsonToFeature(json);
       }).catch(error => console.error(error));
-    }
+
 
     const url = layer.getSource().getFeatureInfoUrl(coordinate, resolution, projection, {
       INFO_FORMAT: 'text/html',
@@ -89,51 +88,6 @@ async function getFeatureInfoUrl({
         let FTL = Html;
         let handleTag = layer.get('ftlseparator') || 'ul';
         const attributeValues = [];
-        if (FTL.search('http://www.esri.com/wms') !== -1) {
-          handleTag = 'body';
-          let returnString = '';
-          const trs = FTL.split('</tr>');
-          const bottom = FTL.split('</tbody>')[1];
-          const top = trs[0].split('<tr>')[0];
-          const headers = trs[0].split('<th>');
-          headers.shift();
-          trs.shift();
-          trs.pop();
-          let i;
-          for (i = 0; i < trs.length; i += 1) {
-            const tds = trs[i].split('</td>');
-            tds.pop();
-            tds[0] = tds[0].substring(6);
-            let y;
-            returnString = returnString.concat(top);
-            for (y = 0; y < tds.length - 1; y += 1) {
-              tds[y] = tds[y].replace(/^(?!<).*/, '');
-              tds[y] = tds[y].substring(2);
-              returnString = returnString.concat('<tr>\n');
-              returnString = returnString.concat(`<th>${headers[y]}`);
-              returnString = returnString.concat(`${tds[y]}</td>\n`);
-              returnString = returnString.concat('</tr>\n');
-
-              // Store attribute values to later be used for fetching geometries from ArcGIS layers.
-              if (typeof layer.get('ArcGIS') !== 'undefined') {
-                const header = headers[y].replace('</th>', '').trim();
-                const queryAttribute = layer.get('queryAttribute');
-                if (typeof queryAttribute !== 'undefined' && header === queryAttribute.trim()) {
-                  attributeValues.push(tds[y].replace('<td>', ''));
-                }
-              }
-            }
-            returnString = returnString.concat(bottom);
-          }
-          FTL = returnString;
-          // ..then make it legible in Origo
-          const agsNameReplace = /<h5>FeatureInfoCollection - layer name: '[-A-Z0-9+&@#/%?=~_ |!:,.;]*'<\/h5>/gim;
-          FTL = FTL.replace(agsNameReplace, '');
-          const urlifyReplace = /<td>(\b(https?|ftp):\/\/[-A-Z0-9+&@#/%?=~_|!:,.;]*[-A-Z0-9+&@#/%=~_|])/gim;
-          FTL = FTL.replace(urlifyReplace, '<td><a href="$1" target="_blank">$1</a>');
-          const tableTextSizeReplace = /font-size: 80%;/;
-          FTL = FTL.replace(tableTextSizeReplace, 'font-size: 90%;');
-        }
         let body = FTL.substring(FTL.indexOf(`<${handleTag}`), FTL.lastIndexOf(`</${handleTag}>`) + `</${handleTag}>`.length);
         const head = FTL.substring(0, FTL.indexOf(`<${handleTag}`));
         const tail = FTL.substring(FTL.lastIndexOf(`</${handleTag}>`) + `</${handleTag}>`.length, FTL.length);
@@ -141,30 +95,10 @@ async function getFeatureInfoUrl({
         let index = 0;
 
         const urls = [];
-        // Build a url string for each attribute value
-        attributeValues.forEach((value) => {
-          if (typeof layer.get('ArcGIS') !== 'undefined' && typeof layer.get('queryId') !== 'undefined' && typeof layer.get('queryAttribute') !== 'undefined') {
-            const sourceUrl = layer.getSource().getUrls()[0].replace('arcgis/services', 'arcgis/rest/services');
-            const mapserverString = sourceUrl.match(/mapserver/gi)[0];
-            const newUrl = `${sourceUrl.substring(0, sourceUrl.lastIndexOf(mapserverString) + 9)}/${layer.get('queryId')}/query?where=${layer.get('queryAttribute')}=${value}&outSR=3010&f=geojson`;
-            urls.push(newUrl);
-          }
-        });
 
         while (body.indexOf(`<${handleTag}`) !== -1) {
           let feature;
-          if (layer.get('ArcGIS')) {
-            if (urls.length > 0) {
-              const resp = await fetch(urls[index]).then(res => res.json());
-              feature = maputils.geojsonToFeature(resp)[0];
-            } else {
-              feature = new Feature({
-                geometry: new Circle(coordinate, 10)
-              });
-            }
-          } else {
-            feature = featureJson[index];
-          }
+          feature = featureJson[index]; 
           index += 1;
           const htmlfeat = body.substring(body.indexOf(`<${handleTag}`), body.indexOf(`</${handleTag}>`) + `</${handleTag}>`.length);
           body = body.replace(htmlfeat, '');
