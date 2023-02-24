@@ -1,5 +1,3 @@
-import Circle from 'ol/geom/Circle';
-import Feature from 'ol/Feature';
 import EsriJSON from 'ol/format/EsriJSON';
 import BaseTileLayer from 'ol/layer/BaseTile';
 import ImageLayer from 'ol/layer/Image';
@@ -60,22 +58,21 @@ async function getFeatureInfoUrl({
   resolution,
   projection
 }, layer) {
-  // #region EK-specific code for FTL
+  // #region EK-specific code for text/html
   if (layer.get('infoFormat') === 'text/html') {
     let featureJson;
-      const featUrl = layer.getSource().getFeatureInfoUrl(coordinate, resolution, projection, {
-        INFO_FORMAT: 'application/json',
-        FEATURE_COUNT: '20'
-      });
-      await fetch(featUrl, { type: 'GET' }).then((res) => {
-        if (res.error) {
-          return [];
-        }
-        return res.json();
-      }).then(json => {
-        featureJson = maputils.geojsonToFeature(json);
-      }).catch(error => console.error(error));
-
+    const featUrl = layer.getSource().getFeatureInfoUrl(coordinate, resolution, projection, {
+      INFO_FORMAT: 'application/json',
+      FEATURE_COUNT: '20'
+    });
+    await fetch(featUrl, { type: 'GET' }).then((res) => {
+      if (res.error) {
+        return [];
+      }
+      return res.json();
+    }).then(json => {
+      featureJson = maputils.geojsonToFeature(json);
+    }).catch(error => console.error(error));
 
     const url = layer.getSource().getFeatureInfoUrl(coordinate, resolution, projection, {
       INFO_FORMAT: 'text/html',
@@ -85,26 +82,15 @@ async function getFeatureInfoUrl({
     return fetch(url)
       .then(Resp => Resp.text())
       .then(async Html => {
-        let FTL = Html;
-        let handleTag = layer.get('ftlseparator') || 'ul';
-        const attributeValues = [];
-        let body = FTL.substring(FTL.indexOf(`<${handleTag}`), FTL.lastIndexOf(`</${handleTag}>`) + `</${handleTag}>`.length);
-        const head = FTL.substring(0, FTL.indexOf(`<${handleTag}`));
-        const tail = FTL.substring(FTL.lastIndexOf(`</${handleTag}>`) + `</${handleTag}>`.length, FTL.length);
-        const features = [];
-        let index = 0;
-
-        const urls = [];
-
-        while (body.indexOf(`<${handleTag}`) !== -1) {
-          let feature;
-          feature = featureJson[index]; 
-          index += 1;
-          const htmlfeat = body.substring(body.indexOf(`<${handleTag}`), body.indexOf(`</${handleTag}>`) + `</${handleTag}>`.length);
-          body = body.replace(htmlfeat, '');
-          feature.set('textHtml', head + htmlfeat + tail);
-          features.push(feature);
-        }
+        const htmlDOM = new DOMParser().parseFromString(Html, 'text/html');
+        const handleTag = (layer.get('ftlseparator') || 'ul').toUpperCase();
+        const elementArray = Array.from(htmlDOM.body.children).filter(child => child.tagName === handleTag);
+        const features = elementArray.map((element, index) => {
+          const feature = featureJson[index];
+          const htmlfeat = `<html> ${htmlDOM.head.outerHTML} <body> ${element.outerHTML} </body> </html>`;
+          feature.set('textHtml', htmlfeat);
+          return feature;
+        });
         layer.set('attributes', 'textHtml');
         return features;
       });
