@@ -3,14 +3,14 @@ import hyperlinkTemplate from './templates/hyperlinktemplate';
 
 const templates = {};
 templates.default = defaultTemplate;
-templates.hyperlink = hyperlinkTemplate; 
+templates.hyperlink = hyperlinkTemplate;
 
-// #region EK-specific for featureinfo with FTL 
+// #region EK-specific for featureinfo with FTL
 const textHtmlTemplate = function textHtmlTemplate(attributes) {
   return attributes.textHtml;
 };
 templates.textHtml = textHtmlTemplate;
-//#endregion
+// #endregion
 
 function featureinfotemplates(template, attributes) {
   return templates[template](attributes);
