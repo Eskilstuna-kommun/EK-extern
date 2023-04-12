@@ -63,12 +63,9 @@ const Print = function Print(options = {}) {
   let screenButton;
   let mapMenu;
   let menuItem;
-  // temporary until upstream issue 1654 has been resolved --
   let printComponent;
 
-  function getPrintComponent() {
-    return printComponent;
-  }
+  const getPrintComponent = () => printComponent;
 
   return Component({
     name: 'print',

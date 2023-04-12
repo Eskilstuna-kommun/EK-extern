@@ -13,16 +13,20 @@ import utils from './utils';
 import Layer from './layer';
 import Main from './components/main';
 import Footer from './components/footer';
+import CenterMarker from './components/centermarker';
 import flattenGroups from './utils/flattengroups';
 import getcenter from './geometry/getcenter';
 import isEmbedded from './utils/isembedded';
+import generateUUID from './utils/generateuuid';
 import permalink from './permalink/permalink';
+import Stylewindow from './style/stylewindow';
 
 const Viewer = function Viewer(targetOption, options = {}) {
   let map;
   let tileGrid;
   let featureinfo;
   let selectionmanager;
+  let stylewindow;
 
   const {
     breakPoints,
@@ -42,6 +46,7 @@ const Viewer = function Viewer(targetOption, options = {}) {
     zoom: zoomOption = 0,
     resolutions = null,
     layers: layerOptions = [],
+    layerParams = {},
     map: mapName,
     params: urlParams = {},
     proj4Defs,
@@ -49,7 +54,8 @@ const Viewer = function Viewer(targetOption, options = {}) {
     source = {},
     clusterOptions = {},
     tileGridOptions = {},
-    url
+    url,
+    palette
   } = options;
 
   let {
@@ -99,6 +105,7 @@ const Viewer = function Viewer(targetOption, options = {}) {
   const footer = Footer({
     data: footerData
   });
+  const centerMarker = CenterMarker();
   let mapSize;
 
   const addControl = function addControl(control) {
@@ -134,6 +141,8 @@ const Viewer = function Viewer(targetOption, options = {}) {
   const getFeatureinfo = () => featureinfo;
 
   const getSelectionManager = () => selectionmanager;
+
+  const getStylewindow = () => stylewindow;
 
   const getCenter = () => getcenter;
 
@@ -341,7 +350,14 @@ const Viewer = function Viewer(targetOption, options = {}) {
             const altStyle = initialProps.stylePicker[savedLayerProps[layerName].altStyleIndex];
             savedProps.clusterStyle = altStyle.clusterStyle;
             savedProps.style = altStyle.style;
-            savedProps.defaultStyle = initialProps.style;
+            if (initialProps.type === 'WMS') {
+              let WMSStylePickerInitialStyle = initialProps.stylePicker.find(style => style.initialStyle);
+              if (WMSStylePickerInitialStyle === undefined) {
+                WMSStylePickerInitialStyle = initialProps.stylePicker[0];
+                WMSStylePickerInitialStyle.initialStyle = true;
+              }
+              savedProps.defaultStyle = WMSStylePickerInitialStyle;
+            } else savedProps.defaultStyle = initialProps.style;
           }
           savedProps.name = initialProps.name;
           const mergedProps = Object.assign({}, initialProps, savedProps);
@@ -398,7 +414,11 @@ const Viewer = function Viewer(targetOption, options = {}) {
     }
   };
 
-  const addLayer = function addLayer(layerProps, insertBefore) {
+  const addLayer = function addLayer(thisProps, insertBefore) {
+    let layerProps = thisProps;
+    if (thisProps.layerParam && layerParams[thisProps.layerParam]) {
+      layerProps = Object.assign({}, layerParams[thisProps.layerParam], thisProps);
+    }
     const layer = Layer(layerProps, this);
     addLayerStylePicker(layerProps);
     if (insertBefore) {
@@ -503,6 +523,7 @@ const Viewer = function Viewer(targetOption, options = {}) {
       }));
 
       tileGrid = maputils.tileGrid(tileGridSettings);
+      stylewindow = Stylewindow({ palette, viewer: this });
 
       setMap(Map(Object.assign(options, { projection, center, zoom, target: this.getId() })));
 
@@ -588,6 +609,7 @@ const Viewer = function Viewer(targetOption, options = {}) {
           featureinfo = Featureinfo(featureinfoOptions);
           this.addComponent(selectionmanager);
           this.addComponent(featureinfo);
+          this.addComponent(centerMarker);
 
           this.addControls();
           this.dispatch('loaded');
@@ -662,8 +684,11 @@ const Viewer = function Viewer(targetOption, options = {}) {
     setStyle,
     zoomToExtent,
     getSelectionManager,
+    getStylewindow,
     getEmbedded,
-    permalink
+    permalink,
+    generateUUID,
+    centerMarker
   });
 };
 
