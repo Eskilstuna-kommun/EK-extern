@@ -245,9 +245,6 @@ const Overlays = function Overlays(options) {
   return Component({
     onAddGroup,
     onChangeLayer,
-    getGroups() {
-      return groupCmps;
-    },
     slidenav,
     getGroups,
     overlaysCollapse,
