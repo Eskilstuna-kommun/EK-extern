@@ -513,8 +513,8 @@ const Draw = function Draw(options = {}) {
   toolbarButtons.push(closeToolbarButton);
 
   const drawToolbarElement = El({
-    cls: 'flex fixed bottom-center divider-horizontal bg-inverted z-index-ontop-high no-print small-gap',
-    style: 'height: 2rem;',
+    cls: 'flex fixed bottom-center divider-horizontal bg-inverted z-index-ontop-high no-print',
+    style: 'height: 2rem; bottom: 2rem; gap: 0.8rem',
     components: toolbarButtons
   });
 
