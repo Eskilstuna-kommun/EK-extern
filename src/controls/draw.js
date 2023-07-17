@@ -643,7 +643,7 @@ const Draw = function Draw(options = {}) {
         viewer.dispatch('toggleClickInteraction', { name: 'draw', active: true });
       }
     },
-    hide() { // temp fill in for upstream pr #1779 start
+    hide() {
       if (placement.some(place => place === 'screen')) {
         document.getElementById(screenButtonContainer.getId()).classList.add('hidden');
       }
@@ -652,7 +652,7 @@ const Draw = function Draw(options = {}) {
       if (placement.some(place => place === 'screen')) {
         document.getElementById(screenButtonContainer.getId()).classList.remove('hidden');
       }
-    }, // end
+    },
     render() {
       if (placement.indexOf('screen') > -1) {
         let htmlString = `${screenButtonContainer.render()}`;
