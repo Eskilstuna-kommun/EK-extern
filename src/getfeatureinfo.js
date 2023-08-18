@@ -61,11 +61,21 @@ async function getFeatureInfoUrl({
   // #region EK-specific code for text/html
   if (layer.get('infoFormat') === 'text/html') {
     let featureJson;
-    const featUrl = layer.getSource().getFeatureInfoUrl(coordinate, resolution, projection, {
+    const jsonFeatureInfoUrlString = layer.getSource().getFeatureInfoUrl(coordinate, resolution, projection, {
       INFO_FORMAT: 'application/json',
       FEATURE_COUNT: '20'
     });
-    await fetch(featUrl, { type: 'GET' }).then((res) => {
+
+    const jsonUrl = new URL(jsonFeatureInfoUrlString);
+    const jsonTargetUrl = new URL(`${jsonUrl.protocol}//${jsonUrl.hostname}${jsonUrl.pathname}`);
+
+    await fetch(jsonTargetUrl, {
+      method: 'POST',
+      headers: {
+        'Content-type': 'application/x-www-form-urlencoded'
+      },
+      body: jsonUrl.searchParams
+    }).then((res) => {
       if (res.error) {
         return [];
       }
@@ -74,12 +84,20 @@ async function getFeatureInfoUrl({
       featureJson = maputils.geojsonToFeature(json);
     }).catch(error => console.error(error));
 
-    const url = layer.getSource().getFeatureInfoUrl(coordinate, resolution, projection, {
+    const textFeatureInfoUrlString = layer.getSource().getFeatureInfoUrl(coordinate, resolution, projection, {
       INFO_FORMAT: 'text/html',
       FEATURE_COUNT: '20'
     });
+    const textUrl = new URL(textFeatureInfoUrlString);
+    const textTargetUrl = new URL(`${textUrl.protocol}//${textUrl.hostname}${textUrl.pathname}`);
 
-    return fetch(url)
+    return fetch(textTargetUrl, {
+      method: 'POST',
+      headers: {
+        'Content-type': 'application/x-www-form-urlencoded'
+      },
+      body: textUrl.searchParams
+    })
       .then(Resp => Resp.text())
       .then(async Html => {
         const htmlDOM = new DOMParser().parseFromString(Html, 'text/html');
