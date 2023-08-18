@@ -66,7 +66,15 @@ async function getFeatureInfoUrl({
       FEATURE_COUNT: '20'
     });
 
-    const jsonUrl = new URL(jsonFeatureInfoUrlString);
+    const getAbsoluteUrl = function getAbsoluteUrl(url) {
+      if (!(url.startsWith('http'))) {
+        return window.location.origin.concat(url);
+      }
+      return url;
+    };
+
+    const jsonUrlString = getAbsoluteUrl(jsonFeatureInfoUrlString);
+    const jsonUrl = new URL(jsonUrlString);
     const jsonTargetUrl = new URL(`${jsonUrl.protocol}//${jsonUrl.hostname}${jsonUrl.pathname}`);
 
     await fetch(jsonTargetUrl, {
@@ -88,7 +96,9 @@ async function getFeatureInfoUrl({
       INFO_FORMAT: 'text/html',
       FEATURE_COUNT: '20'
     });
-    const textUrl = new URL(textFeatureInfoUrlString);
+
+    const textUrlString = getAbsoluteUrl(textFeatureInfoUrlString);
+    const textUrl = new URL(textUrlString);
     const textTargetUrl = new URL(`${textUrl.protocol}//${textUrl.hostname}${textUrl.pathname}`);
 
     return fetch(textTargetUrl, {
