@@ -172,13 +172,15 @@ async function setIcon(src, cmp, styleRules, layer, viewer, clickable) {
       searchParams.set('FORMAT', 'image/png');
       searchParams.set('RULE', row.name);
       const imgUrl = decodeURIComponent(searchParams.toString());
-      style[0].thematic.push({
-        image: { src: imgUrl },
-        filter: row.filter,
-        name: row.name,
-        label: row.title,
-        visible: row.visible !== false
-      });
+      if (typeof row.filter !== 'undefined') {
+        style[0].thematic.push({
+          image: { src: imgUrl },
+          filter: row.filter,
+          name: row.name,
+          label: row.title || row.name,
+          visible: row.visible !== false
+        });
+      }
     });
     viewer.setStyle(styleName, style);
   }
@@ -237,7 +239,7 @@ export const renderExtendedThematicLegendItem = function renderExtendedThematicL
 export const Legend = function Legend({
   styleRules, layer, viewer, clickable = true, opacity = 1
 } = {}) {
-  const noLegend = 'Legend saknas';
+  const noLegend = 'Teckenförklaring saknas';
   if (Array.isArray(styleRules)) {
     let styleName;
     const layerType = layer.get('type');
@@ -291,7 +293,9 @@ export const Legend = function Legend({
     });
     return El({ components: cmps, tagName: 'ul' });
   }
-  return El({ innerHTML: noLegend });
+  const noLegendInner = El({ innerHTML: noLegend, tagName: 'li', cls: 'padding-smaller text-smaller' });
+  const noLegendOuter = El({ components: [noLegendInner], tagName: 'ul' });
+  return noLegendOuter;
 };
 
 export const HeaderIcon = function HeaderIcon(styleRules, opacity = 1) {

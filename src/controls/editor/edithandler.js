@@ -4,7 +4,7 @@ import Modify from 'ol/interaction/Modify';
 import Snap from 'ol/interaction/Snap';
 import Collection from 'ol/Collection';
 import Feature from 'ol/Feature';
-import { LineString } from 'ol/geom';
+import { LineString, MultiPolygon, MultiLineString, MultiPoint } from 'ol/geom';
 import { noModifierKeys } from 'ol/events/condition';
 import { Button, Element as El, Modal } from '../../ui';
 import Infowindow from '../../components/infowindow';
@@ -56,6 +56,7 @@ let allowEditGeometry;
 let breadcrumbs = [];
 let autoCreatedFeature = false;
 let infowindowCmp = false;
+let preselectedFeature;
 
 function isActive() {
   // FIXME: this only happens at startup as they are set to null on closing. If checking for null/falsley/not truely it could work as isVisible with
@@ -279,6 +280,35 @@ async function addFeature(feature) {
     editAttributes(feature);
   }
 }
+/**
+ * Checks if a feature's geometry type is same as current edit layer's type. If it can be converted to
+ * correct type it will do that e.g. creating a multi variant of a single geometry.
+ * @param {any} f Feature to check
+ * @returns {boolean} True if feature matches layer
+ */
+function ensureCorrectGeometryType(f) {
+  //  Correct geometry type to conform to edit layer
+  const featureGeometryType = f.getGeometry().getType();
+  const layerGeometryType = editLayers[currentLayer].get('geometryType');
+  if (featureGeometryType !== layerGeometryType) {
+    if (featureGeometryType === 'Polygon' && layerGeometryType === 'MultiPolygon') {
+      const multiPoly = new MultiPolygon([f.getGeometry()]);
+      f.setGeometry(multiPoly);
+      return true;
+    }
+    if (featureGeometryType === 'LineString' && layerGeometryType === 'MultiLineString') {
+      const multiLine = new MultiLineString([f.getGeometry()]);
+      f.setGeometry(multiLine);
+      return true;
+    }
+    if (featureGeometryType === 'Point' && layerGeometryType === 'MultiPoint') {
+      const multiPoint = new MultiPoint([f.getGeometry()]);
+      f.setGeometry(multiPoint);
+      return true;
+    }
+  }
+  return featureGeometryType === layerGeometryType;
+}
 
 // Handler for OL Draw interaction
 function onDrawEnd(evt) {
@@ -293,6 +323,12 @@ function onDrawEnd(evt) {
   // Remove identical vertices by doing a simplify using a small tolerance. Not the most efficient, but it's only one row for me to write and
   // freehand produces so many vertices that a clean up is still a good idea.
   f.setGeometry(f.getGeometry().simplify(0.00001));
+
+  if (!ensureCorrectGeometryType(f)) {
+    // This is a configuration problem. You have added a tool that produces incorrect geometry type
+    console.error('Incorrect geometry type for layer');
+    return;
+  }
 
   // If live validation did its job, we should not have to validate here, but freehand bypasses all controls and we can't tell if freehand was used.
   if (validateOnDraw && !topology.isGeometryValid(f.getGeometry())) {
@@ -421,7 +457,7 @@ function onCustomDrawEnd(e) {
   // Check if a feature has been created, or tool canceled
   const feature = e.detail.feature;
   if (feature) {
-    if (feature.getGeometry().getType() !== editLayers[currentLayer].get('geometryType')) {
+    if (!ensureCorrectGeometryType(feature)) {
       alert('Kan inte lägga till en geometri av den typen i det lagret');
     } else {
       // Must move geometry to correct property. Setting geometryName is not enough.
@@ -571,6 +607,12 @@ function setInteractions(drawType) {
       }
     });
   }
+
+  if (preselectedFeature) {
+    select.getFeatures().push(preselectedFeature);
+  }
+  // Clear it so we won't get stuck on this feature. This makes it unnecessary to clear it anywhere else.
+  preselectedFeature = null;
   if (allowEditGeometry) {
     modify = new Modify({
       features: select.getFeatures()
@@ -592,6 +634,7 @@ function setInteractions(drawType) {
   // If snap should be active then add snap internactions for all snap layers
   hasSnap = editLayer.get('snap');
   if (hasSnap) {
+    // FIXME: selection will almost certainly be empty as featureInfo is cleared
     const selectionSource = featureInfo.getSelectionLayer().getSource();
     const snapSources = editLayer.get('snapLayers') ? getSnapSources(editLayer.get('snapLayers')) : [editLayer.get('source')];
     snapSources.push(selectionSource);
@@ -599,20 +642,25 @@ function setInteractions(drawType) {
   }
 }
 
+/** Closes all modals and resets breadcrumbs */
 function closeAllModals() {
-  // Close all modals first to get rid of tags in DOM
+  // Close all modals before resetting breadcrumbs to get rid of tags in DOM
   if (modal) modal.closeModal();
   modal = null;
   breadcrumbs.forEach(br => {
     if (br.modal) br.modal.closeModal();
   });
+  if (breadcrumbs.length > 0) {
+    currentLayer = breadcrumbs[0].layerName;
+    title = breadcrumbs[0].title;
+    attributes = breadcrumbs[0].attributes;
+  }
   breadcrumbs = [];
 }
 
 function setEditLayer(layerName) {
-  // It is not possible to actually change layer while having breadcrubs as all modals must be closed, which will
-  // pop off all breadcrumbs.
-  // But just in case something changes, reset the breadcrumbs when a new layer is edited.
+  // Close all modals first and restore state. This can only happen if calling using api, as
+  // the modal prevents user from clicking in the map conrol
   closeAllModals();
   currentLayer = layerName;
   setAllowedOperations();
@@ -1388,10 +1436,8 @@ function editAttributesDialogApi(featureId, layerName = null) {
   const layer = viewer.getLayer(layerName);
   const feature = layer.getSource().getFeatureById(featureId);
   // Hijack the current layer for a while. If there's a modal visible it is closed (without saving) as editAttributes can not handle
-  // multiple dialogs for the same layer so to be safe we always close. Technically the user can not
-  // call this function when a modal is visible, as they can't click anywhere.
+  // multiple dialogs for the same layer so to be safe we always close.
   // Restoring currentLayer is performed in onModalClosed(), as we can't await the modal.
-  // Close all modals and eat all breadcrumbs
   closeAllModals();
   // If editing in another layer, add a breadcrumb to restore layer when modal is closed.
   if (layerName && layerName !== currentLayer) {
@@ -1464,6 +1510,15 @@ function onDeleteChild(e) {
 }
 
 /**
+ * Sets a feature that will be active for editing when editor is activated. When the edit session starts, the feature's layer must
+ * be active and that state is kept in the editor toolbar and sent through an event, so you better update toolbar as well.
+ * @param {any} feature
+ */
+function preselectFeature(feature) {
+  preselectedFeature = feature;
+}
+
+/**
  * Creates the handler. It is used as sort of a singelton, but in theory there could be many handlers.
  * It communicates with the editor toolbar and forms using DOM events, which makes it messy to have more than one instance as they would use the same events.
  * @param {any} options
@@ -1508,6 +1563,7 @@ export default function editHandler(options, v) {
     createFeature: createFeatureApi,
     editAttributesDialog: editAttributesDialogApi,
     deleteFeature: deleteFeatureApi,
-    setActiveLayer: setActiveLayerApi
+    setActiveLayer: setActiveLayerApi,
+    preselectFeature
   };
 }
