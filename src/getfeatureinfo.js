@@ -1,6 +1,7 @@
 import EsriJSON from 'ol/format/EsriJSON';
 import BaseTileLayer from 'ol/layer/BaseTile';
 import ImageLayer from 'ol/layer/Image';
+import infoTemplates from './featureinfotemplates';
 import maputils from './maputils';
 import SelectedItem from './models/SelectedItem';
 
@@ -57,122 +58,131 @@ async function getFeatureInfoUrl({
   coordinate,
   resolution,
   projection
-}, layer) {
-  // #region EK-specific code for text/html
+}, layer, viewer, textHtmlHandler) {
   if (layer.get('infoFormat') === 'text/html') {
-    let featureJson;
-    const jsonFeatureInfoUrlString = layer.getSource().getFeatureInfoUrl(coordinate, resolution, projection, {
-      INFO_FORMAT: 'application/json',
-      FEATURE_COUNT: '20'
-    });
+    const mapSource = viewer.getMapSource();
+    const sourceName = layer.get('sourceName');
+    const WMSServerType = mapSource[sourceName].type.toLowerCase();
 
-    const getAbsoluteUrl = function getAbsoluteUrl(url) {
-      if (!(url.startsWith('http'))) {
-        return window.location.origin.concat(url);
-      }
-      return url;
+    const supportedWMSServerTypes = ['geoserver'];
+
+    if ((!WMSServerType) || (!supportedWMSServerTypes.includes(WMSServerType))) {
+      return [];
+    }
+    // may be provided via featureinfo.js: addTextHtmlHandler(function) via viewer/api: getFeatureinfo()
+    const htmlHandler = textHtmlHandler || function htmlHandler({ vendor, lyr, htmlDOM }) {
+      if (vendor === 'geoserver') {
+        const handleTag = lyr.get('htmlSeparator')?.toUpperCase() || null;
+        if (handleTag) {
+          return Array.from(htmlDOM.body.children).filter(child => child.tagName === handleTag);
+        }
+        return [htmlDOM];
+      } return [];
     };
 
-    const jsonUrlString = getAbsoluteUrl(jsonFeatureInfoUrlString);
-    const jsonUrl = new URL(jsonUrlString);
-    const jsonTargetUrl = new URL(`${jsonUrl.protocol}//${jsonUrl.hostname}${jsonUrl.pathname}`);
+    infoTemplates.addFeatureinfotemplate('textHtml', attributes => attributes.textHtml);
 
-    await fetch(jsonTargetUrl, {
-      method: 'POST',
-      headers: {
-        'Content-type': 'application/x-www-form-urlencoded'
-      },
-      body: jsonUrl.searchParams
-    }).then((res) => {
-      if (res.error) {
-        return [];
-      }
-      return res.json();
-    }).then(json => {
-      featureJson = maputils.geojsonToFeature(json);
-    }).catch(error => console.error(error));
+    let json;
+    if (!layer.get('htmlSeparator')) {
+      json = {
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: coordinate
+            },
+            layerName: layer.get('name')
+          }
+        ]
+      };
+    } else {
+      const jsonRequestParamObj = {
+        INFO_FORMAT: 'application/json',
+        FEATURE_COUNT: '20'
+      };
+
+      const jsonUrlString = layer.getSource().getFeatureInfoUrl(coordinate, resolution, projection, jsonRequestParamObj);
+      const jsonResponse = await fetch(jsonUrlString, { method: 'GET' });
+      json = await jsonResponse.json();
+    }
+
+    const featureCollection = maputils.geojsonToFeature(json);
 
     const textFeatureInfoUrlString = layer.getSource().getFeatureInfoUrl(coordinate, resolution, projection, {
       INFO_FORMAT: 'text/html',
       FEATURE_COUNT: '20'
     });
 
-    const textUrlString = getAbsoluteUrl(textFeatureInfoUrlString);
-    const textUrl = new URL(textUrlString);
-    const textTargetUrl = new URL(`${textUrl.protocol}//${textUrl.hostname}${textUrl.pathname}`);
+    const htmlResponse = await fetch(textFeatureInfoUrlString, { method: 'GET' });
+    const html = await htmlResponse.text();
+    const htmlDOM = new DOMParser().parseFromString(html, 'text/html');
 
-    return fetch(textTargetUrl, {
-      method: 'POST',
-      headers: {
-        'Content-type': 'application/x-www-form-urlencoded'
-      },
-      body: textUrl.searchParams
-    })
-      .then(Resp => Resp.text())
-      .then(async Html => {
-        const htmlDOM = new DOMParser().parseFromString(Html, 'text/html');
-        const handleTag = (layer.get('ftlseparator') || 'ul').toUpperCase();
-        const elementArray = Array.from(htmlDOM.body.children).filter(child => child.tagName === handleTag);
-        const features = elementArray.map((element, index) => {
-          const feature = featureJson[index];
-          const htmlfeat = `<html> ${htmlDOM.head.outerHTML} <body> ${element.outerHTML} </body> </html>`;
-          feature.set('textHtml', htmlfeat);
-          return feature;
-        });
-        layer.set('attributes', 'textHtml');
-        return features;
-      });
+    const elementArray = htmlHandler({
+      vendor: WMSServerType.toLowerCase(),
+      lyr: layer,
+      htmlDOM
+    });
+
+    if (elementArray[0]?.body?.children?.length === 0) return [];
+
+    const features = elementArray.map((element, index) => {
+      let feature;
+      let htmlfeat;
+      // case no htmlSeparator prop: show same dot geometry for all hits
+      // and put the documentElement of the response within <html>
+      if (!layer.get('htmlSeparator')) {
+        feature = featureCollection[0];
+        htmlfeat = `<html> ${element.documentElement.outerHTML} </html>`;
+      } else {
+        feature = featureCollection[index];
+        htmlfeat = `<html> ${htmlDOM.head.outerHTML} <body> ${element.outerHTML} </body> </html>`;
+      }
+      feature.set('textHtml', htmlfeat);
+      return feature;
+    });
+    layer.set('attributes', 'textHtml');
+    return features;
   }
-  // #endregion
+
   if (layer.get('infoFormat') === 'application/geo+json' || layer.get('infoFormat') === 'application/geojson') {
     const url = layer.getSource().getFeatureInfoUrl(coordinate, resolution, projection, {
       INFO_FORMAT: layer.get('infoFormat'),
       FEATURE_COUNT: '20'
     });
-
-    return fetch(url, { type: 'GET' })
-      .then((res) => {
-        if (res.error) {
-          return [];
+    const res = await fetch(url, { method: 'GET' });
+    const text = await res.text();
+    let json = {};
+    try {
+      json = JSON.parse(text);
+    } catch (error) {
+      if (error instanceof SyntaxError) {
+        json = JSON.parse(text.replaceAll('\\', '\\\\'));
+      } else {
+        console.error(error);
+      }
+    }
+    if (json.features.length > 0) {
+      const copyJson = json;
+      copyJson.features.forEach((item, i) => {
+        if (!item.geometry) {
+          copyJson.features[i].geometry = { type: 'Point', coordinates: coordinate };
         }
-        return res.text();
-      })
-      .then(text => {
-        let json = {};
-        try {
-          json = JSON.parse(text);
-        } catch (error) {
-          if (error instanceof SyntaxError) {
-            // Maybe bad escaped character, retry with escaping backslash
-            json = JSON.parse(text.replaceAll('\\', '\\\\'));
-          } else {
-            console.error(error);
-          }
-        }
-        if (json.features.length > 0) {
-          const copyJson = json;
-          copyJson.features.forEach((item, i) => {
-            if (!item.geometry) {
-              copyJson.features[i].geometry = { type: 'Point', coordinates: coordinate };
-            }
-          });
-          const feature = maputils.geojsonToFeature(copyJson);
-          return feature;
-        }
-        return [];
-      })
-      .catch(error => console.error(error));
+      });
+      const feature = maputils.geojsonToFeature(copyJson);
+      return feature;
+    }
+    return [];
   }
+
   const url = layer.getSource().getFeatureInfoUrl(coordinate, resolution, projection, {
     INFO_FORMAT: 'application/json',
     FEATURE_COUNT: '20'
   });
-  return fetch(url, { type: 'GET' }).then((res) => {
-    if (res.error) {
-      return [];
-    }
-    return res.json();
-  }).then(json => maputils.geojsonToFeature(json)).catch(error => console.error(error));
+  const res = await fetch(url, { method: 'GET' });
+  const json = await res.json();
+  return maputils.geojsonToFeature(json);
 }
 
 function getAGSIdentifyUrl({ layer, coordinate }, viewer) {
@@ -214,7 +224,7 @@ function getAGSIdentifyUrl({ layer, coordinate }, viewer) {
   }).catch(error => console.error(error));
 }
 
-function getGetFeatureInfoRequest({ layer, coordinate }, viewer) {
+function getGetFeatureInfoRequest({ layer, coordinate }, viewer, textHtmlHandler) {
   const layerType = layer.get('type');
   const obj = {};
   const projection = viewer.getProjection();
@@ -236,7 +246,7 @@ function getGetFeatureInfoRequest({ layer, coordinate }, viewer) {
         return getGetFeatureInfoRequest({ layer: featureinfoLayer, coordinate }, viewer);
       }
       obj.cb = 'GEOJSON';
-      obj.fn = getFeatureInfoUrl({ coordinate, resolution, projection }, layer);
+      obj.fn = getFeatureInfoUrl({ coordinate, resolution, projection }, layer, viewer, textHtmlHandler);
       return obj;
     case 'AGS_TILE':
       if (layer.get('featureinfoLayer')) {
@@ -257,7 +267,7 @@ function getFeatureInfoRequests({
   coordinate,
   pixel,
   layers
-}, viewer) {
+}, viewer, textHtmlHandler) {
   const imageFeatureInfoMode = viewer.getViewerOptions().featureinfoOptions.imageFeatureInfoMode || 'pixel';
   const requests = [];
   let queryableLayers;
@@ -295,12 +305,12 @@ function getFeatureInfoRequests({
     if (imageInfoMode === 'pixel') {
       const pixelVal = layer.getData(pixel);
       if (pixelVal instanceof Uint8ClampedArray && pixelVal[3] > 0) {
-        item = getGetFeatureInfoRequest({ layer, coordinate }, viewer);
+        item = getGetFeatureInfoRequest({ layer, coordinate }, viewer, textHtmlHandler);
       }
     } else if ((imageInfoMode === 'visible') && (layer.get('visible') === true)) {
-      item = getGetFeatureInfoRequest({ layer, coordinate }, viewer);
+      item = getGetFeatureInfoRequest({ layer, coordinate }, viewer, textHtmlHandler);
     } else if (imageInfoMode === 'always') {
-      item = getGetFeatureInfoRequest({ layer, coordinate }, viewer);
+      item = getGetFeatureInfoRequest({ layer, coordinate }, viewer, textHtmlHandler);
     }
     if (item) {
       requests.push(item);
@@ -310,10 +320,9 @@ function getFeatureInfoRequests({
   return requests;
 }
 
-function getFeaturesFromRemote(requestOptions, viewer) {
+function getFeaturesFromRemote(requestOptions, viewer, textHtmlHandler) {
   const requestResult = [];
-
-  const requestPromises = getFeatureInfoRequests(requestOptions, viewer).map((request) => request.fn.then((features) => {
+  const requestPromises = getFeatureInfoRequests(requestOptions, viewer, textHtmlHandler).map((request) => request.fn.then((features) => {
     const layer = viewer.getLayer(request.layer);
     const groupLayers = viewer.getGroupLayers();
     const map = viewer.getMap();
