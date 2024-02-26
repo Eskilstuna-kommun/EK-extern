@@ -62,13 +62,22 @@ async function getFeatureInfoUrl({
   if (layer.get('infoFormat') === 'text/html') {
     const mapSource = viewer.getMapSource();
     const sourceName = layer.get('sourceName');
-    const WMSServerType = mapSource[sourceName].type.toLowerCase();
+    const WMSServerType = mapSource[sourceName].type?.toLowerCase();
 
     const supportedWMSServerTypes = ['geoserver'];
 
     if ((!WMSServerType) || (!supportedWMSServerTypes.includes(WMSServerType))) {
       return [];
     }
+
+    if (!(layer.get('htmlSeparator'))) layer.set('htmlSeparator', 'ul');
+    const getAbsoluteUrl = function getAbsoluteUrl(url) {
+      if (!(url.startsWith('http'))) {
+        return window.location.origin.concat(url);
+      }
+      return url;
+    };
+
     // may be provided via featureinfo.js: addTextHtmlHandler(function) via viewer/api: getFeatureinfo()
     const htmlHandler = textHtmlHandler || function htmlHandler({ vendor, lyr, htmlDOM }) {
       if (vendor === 'geoserver') {
@@ -103,8 +112,15 @@ async function getFeatureInfoUrl({
         FEATURE_COUNT: '20'
       };
 
-      const jsonUrlString = layer.getSource().getFeatureInfoUrl(coordinate, resolution, projection, jsonRequestParamObj);
-      const jsonResponse = await fetch(jsonUrlString, { method: 'GET' });
+      const jsonTargetUrl = new URL(getAbsoluteUrl(layer.getSource().getFeatureInfoUrl(coordinate, resolution, projection, jsonRequestParamObj)));
+
+      const jsonResponse = await fetch(jsonTargetUrl, {
+        method: 'POST',
+        headers: {
+          'Content-type': 'application/x-www-form-urlencoded'
+        },
+        body: jsonTargetUrl.searchParams
+      });
       json = await jsonResponse.json();
     }
 
