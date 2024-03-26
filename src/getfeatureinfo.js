@@ -62,12 +62,13 @@ async function getFeatureInfoUrl({
   if (layer.get('infoFormat') === 'text/html') {
     const mapSource = viewer.getMapSource();
     const sourceName = layer.get('sourceName');
-    const WMSServerType = mapSource[sourceName].type?.toLowerCase();
+    let WMSServerType = mapSource[sourceName].type?.toLowerCase();
 
     const supportedWMSServerTypes = ['geoserver'];
 
     if ((!WMSServerType) || (!supportedWMSServerTypes.includes(WMSServerType))) {
-      return [];
+      WMSServerType = 'geoserver'; // pending implementation in Layermanager
+      // return [];
     }
 
     if (!(layer.get('htmlSeparator'))) layer.set('htmlSeparator', 'ul');
