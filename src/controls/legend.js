@@ -51,6 +51,7 @@ const Legend = function Legend(options = {}) {
   let visibleOverlaysCmp;
   let mainContainerEl;
   const backgroundLayerButtons = [];
+  const cycleButtons = [];
   let toggleGroup;
   let layerSwitcherEl;
   let addLayerButton;
@@ -81,6 +82,71 @@ const Legend = function Legend(options = {}) {
         }
       }
     }
+  };
+
+  const addCycleButtons = (cycleGroups) => {
+    const cycleAButton = function cycleAButton(button, layer) {
+      const theButton = button;
+      theButton.data.activeLayer[0].setVisible(false);
+
+      const newIndex = theButton.data.layers.indexOf(layer);
+      theButton.data.activeLayer[0] = theButton.data.layers[newIndex];
+      theButton.data.activeLayer[0].setVisible(true);
+
+      const styleName = theButton.data.activeLayer[0].get('styleName') || 'default';
+      const icon = viewer.getStyle(styleName) ? imageSource(viewer.getStyle(styleName)) : 'img/png/farg.png';
+      theButton.setIcon(icon, `Växla: ${theButton.data.activeLayer[0].get('title')}`);
+    };
+    Object.values(cycleGroups).forEach((cycleGroup) => {
+      let activeLayer = cycleGroup.find((layer) => layer.get('visible') === true);
+      activeLayer = activeLayer || cycleGroup[0];
+      activeLayer = [activeLayer];
+
+      const styleName = activeLayer[0].get('styleName') || 'default';
+      const icon = viewer.getStyle(styleName) ? imageSource(viewer.getStyle(styleName)) : 'img/png/farg.png';
+      const title = activeLayer[0].get('title');
+      const cycleButton = Button({
+        icon,
+        title: `Växla: ${title}`,
+        cls: 'round smallest border icon-small icon-bg cycle',
+        state: activeLayer[0].get('visible') ? 'active' : 'initial',
+        data: {
+          layers: cycleGroup,
+          activeLayer,
+          numberOfLayers: cycleGroup.length
+        },
+        methods: {
+          active: () => {
+            if (activeLayer[0].getVisible() === false) activeLayer[0].setVisible(true);
+          },
+          initial: () => {
+            activeLayer[0].setVisible(false);
+          }
+        },
+        click() {
+          if (this.getState() === 'active') {
+            const currIndex = this.data.layers.indexOf(this.data.activeLayer[0]);
+            const newIndex = (currIndex + 1) % this.data.numberOfLayers;
+            cycleAButton(this, this.data.layers[newIndex]);
+          }
+        }
+      });
+      cycleGroup.forEach(layer => {
+        layer.on('change:visible', () => {
+          if (layer.getVisible() === true) {
+            if (layer === cycleButton.data.activeLayer[0]) {
+              cycleButton.setState('active');
+            } else {
+              cycleAButton(cycleButton, layer);
+              cycleButton.setState('active');
+            }
+          } else if (!(cycleGroup.some(aLayer => aLayer.getVisible()))) {
+            cycleButton.setState('initial');
+          }
+        });
+      });
+      cycleButtons.push(cycleButton);
+    });
   };
 
   const addBackgroundButton = function addBackgroundButton(layer) {
@@ -596,10 +662,27 @@ const Legend = function Legend(options = {}) {
       }
       viewer.on('active:togglevisibleLayers', toggleShowVisibleLayers);
 
-      const backgroundLayers = viewer.getLayersByProperty('group', 'background').reverse();
+      const cycleGroups = {};
+
+      viewer.getLayersByProperty('group', 'background')
+        .forEach(layer => {
+          const cycleGroup = layer.get('cycleGroup');
+          if (cycleGroup) {
+            if (!cycleGroups[cycleGroup]) {
+              cycleGroups[cycleGroup] = [layer];
+            } else {
+              cycleGroups[cycleGroup].push(layer);
+            }
+          }
+        });
+
+      const backgroundLayers = viewer.getLayersByProperty('group', 'background')
+        .filter(layer => !layer.get('cycleGroup')).reverse();
+
       addBackgroundButtons(backgroundLayers);
+      addCycleButtons(cycleGroups);
       toggleGroup = ToggleGroup({
-        components: backgroundLayerButtons,
+        components: backgroundLayerButtons.concat(cycleButtons),
         cls: 'spacing-horizontal-small'
       });
       this.render();
