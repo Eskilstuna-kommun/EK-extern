@@ -91,7 +91,7 @@ button {
     border: 2px solid $white;
 
     &.active {
-      border: 2px solid $grey-light;
+      border: 2px solid $grey;
     }
 
     &.active:hover {
@@ -273,7 +273,7 @@ button:focus:not(:focus-visible),
   }
 
   &.icon-bg:focus:not(:focus-visible) {
-    border: 2px solid $grey-light;
+    border: 2px solid $grey;
   }
 
   &.icon-smaller:focus:not(:focus-visible) {
@@ -315,7 +315,7 @@ button.active,
 }
 
 .cycle {
-  background: linear-gradient(45deg, #8db2d7, #ddddee);
+  background: linear-gradient(45deg, #b8d6f3, #ddddee);
   width: 37px; 
   height: 37px; 
 }

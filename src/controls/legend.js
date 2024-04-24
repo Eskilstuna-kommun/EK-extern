@@ -682,7 +682,7 @@ const Legend = function Legend(options = {}) {
       addBackgroundButtons(backgroundLayers);
       addCycleButtons(cycleGroups);
       toggleGroup = ToggleGroup({
-        components: backgroundLayerButtons.concat(cycleButtons),
+        components: cycleButtons.concat(backgroundLayerButtons),
         cls: 'spacing-horizontal-small'
       });
       this.render();
