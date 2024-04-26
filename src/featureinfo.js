@@ -184,6 +184,7 @@ const Featureinfo = function Featureinfo(options = {}) {
       selectionLayer.setSourceLayer(currentItem.layer);
       if (identifyTarget === 'overlay') {
         popup.setTitle(title);
+        popup.setPopupStyle(title);
       } else if (identifyTarget === 'sidebar') {
         sidebar.setTitle(title);
       }
@@ -427,10 +428,12 @@ const Featureinfo = function Featureinfo(options = {}) {
       case 'overlay':
       {
         popup = Popup(`#${viewer.getId()}`, { closeCb: onInfoClosed });
+        const title = getTitle(items[0]);
         popup.setContent({
           content,
-          title: getTitle(items[0])
+          title
         });
+        popup.setPopupStyle(title);
         const contentDiv = document.getElementById('o-identify-carousel');
         const carouselIds = [];
         items.forEach((item) => {

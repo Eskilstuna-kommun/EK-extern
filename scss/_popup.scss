@@ -96,17 +96,18 @@
 }
 &[class*=#{$media-l-m-s}] {
   #o-popup, .o-popup {
-    width: 240px;
+    width: 270px;
   }
 }
 &[class*=#{$media-l-m-s-xs}] {
   #o-popup, .o-popup {
-    width: 200px;
+    width: 270px;
   }
 }
 
 .o-popup .o-card-content {
   max-height: calc(70vh - 46px) !important;
+  background-color: white;
 
   #o-identify {
     max-height: inherit;

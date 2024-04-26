@@ -60,6 +60,53 @@ function setContent(config) {
   }
 }
 
+function setPopupStyle(SUWThemeTitle) {
+  const cardTitle = document.getElementById('o-card-title');
+  const card = document.getElementsByClassName('o-popup o-card')[0];
+
+  switch (SUWThemeTitle) {
+    case 'Utemiljö':
+      card.style.setProperty('background-color', 'rgba(65,143,53,1)', 'important');
+      cardTitle.style.setProperty('color', 'whitesmoke', 'important');
+      break;
+    case 'Flera kategorier':
+      card.style.setProperty('background-color', 'rgba(95,95,95,1)', 'important');
+      cardTitle.style.setProperty('color', 'whitesmoke', 'important');
+      break;
+    case 'Vård och omsorg':
+      card.style.setProperty('background-color', 'rgba(228,40,28,1)', 'important');
+      cardTitle.style.setProperty('color', 'whitesmoke', 'important');
+      break;
+    case 'Trafik och infrastruktur':
+      card.style.setProperty('background-color', 'rgba(0,154,203,1)', 'important');
+      cardTitle.style.setProperty('color', 'whitesmoke', 'important');
+      break;
+    case 'Kultur och fritid':
+      card.style.setProperty('background-color', 'rgba(46,77,156,1)', 'important');
+      cardTitle.style.setProperty('color', 'whitesmoke', 'important');
+      break;
+    case 'Handel, kontor, industri m.m.':
+      card.style.setProperty('background-color', 'rgba(255,213,0,1)', 'important');
+      cardTitle.style.setProperty('color', '#191919', 'important');
+      break;
+    case 'Förskola och skola':
+      card.style.setProperty('background-color', 'rgba(236,116,35,1)', 'important');
+      cardTitle.style.setProperty('color', 'whitesmoke', 'important');
+      break;
+    case 'Bostäder':
+      card.style.setProperty('background-color', 'rgba(231,66,135,1)', 'important');
+      cardTitle.style.setProperty('color', 'whitesmoke', 'important');
+      break;
+    case 'Geografiska områden':
+      card.style.setProperty('background-color', 'rgba(130,54,136,1)', 'important');
+      cardTitle.style.setProperty('color', 'whitesmoke', 'important');
+      break;
+    default:
+      card.style.setProperty('background-color', 'rgba(55,26,179,0.5)', 'important');
+      cardTitle.style.setProperty('color', 'whitesmoke', 'important');
+  }
+}
+
 function minimizePopup() {
   const oidentify = document.getElementById('o-identify');
   const opopup = document.getElementById('o-popup');
@@ -115,6 +162,7 @@ export default function popup(target, opts = {}) {
     setVisibility,
     setTitle,
     setContent,
+    setPopupStyle,
     closePopup: () => {
       closePopupInternal(closeCb);
     }
