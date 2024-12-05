@@ -318,10 +318,22 @@ const Group = function Group(viewer, options = {}) {
         });
         this.on('tick:all', () => {
           const overlays = groupList.getOverlays();
+          const layerNames = [];
           overlays.forEach((overlay) => {
             const layer = overlay.getLayer();
+            layerNames.push(layer.get('name'));
             layer.setVisible(true);
           });
+          const contentEl = document.getElementById(this.getId());
+          const statsEvent = 'stats:layerslit';
+          const customEvt = new CustomEvent(statsEvent, {
+            bubbles: true,
+            detail: {
+              layers: layerNames
+            }
+          });
+          contentEl.dispatchEvent(customEvt);
+
           const groups = groupList.getGroups();
           groups.forEach((group) => {
             if (!group.exclusive) {

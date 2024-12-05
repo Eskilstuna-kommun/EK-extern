@@ -26,7 +26,8 @@ const Legend = function Legend(options = {}) {
     searchLayersMinLength = 2,
     searchLayersLimit = 10,
     searchLayersParameters = ['name', 'title'],
-    searchLayersPlaceholderText = 'Sök lager'
+    searchLayersPlaceholderText = 'Sök lager',
+    statConf
   } = options;
 
   let {
@@ -608,6 +609,20 @@ const Legend = function Legend(options = {}) {
     }
   }
 
+  function postLayerStats(statsObj) {
+    const postOptions = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        layers: statsObj.layers,
+        ext: statConf.ext
+      })
+    };
+    fetch(statConf.url, postOptions);
+  }
+
   return Component({
     name,
     getLayerSwitcherCmp() {
@@ -710,6 +725,16 @@ const Legend = function Legend(options = {}) {
         e.stopPropagation();
         toggleVisibility();
       });
+      if (statConf) {
+        layerSwitcherEl.addEventListener('stats:layerlit', (e) => {
+          e.stopPropagation();
+          postLayerStats(e.detail);
+        });
+        layerSwitcherEl.addEventListener('stats:layerslit', (e) => {
+          e.stopPropagation();
+          postLayerStats(e.detail);
+        });
+      }
       window.addEventListener('resize', updateMaxHeight);
       if (layerControlCmps.length > 0) this.addButtonToTools(layerControl);
       if (searchLayersControl) this.addButtonToTools(layerSearchInput);
@@ -725,7 +750,10 @@ const Legend = function Legend(options = {}) {
       target = document.getElementById(viewer.getMain().getId());
       const maxHeight = calcMaxHeight(getTargetHeight());
       overlaysCmp = Overlays({
-        viewer, cls: contentCls, style: contentStyle, labelOpacitySlider
+        viewer,
+        cls: contentCls,
+        style: contentStyle,
+        labelOpacitySlider
       });
       visibleOverlaysCmp = VisibleOverlays({
         viewer, cls: `${contentCls} hidden`, style: contentStyle, labelOpacitySlider

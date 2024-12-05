@@ -109,6 +109,17 @@ const OverlayLayer = function OverlayLayer(options) {
     click() {
       if (!secure) {
         toggleVisible(layer.getVisible());
+        if (layer.getVisible()) {
+          const contentEl = document.getElementById(this.getId());
+          const statsEvent = 'stats:layerlit';
+          const customEvt = new CustomEvent(statsEvent, {
+            bubbles: true,
+            detail: {
+              layers: [layer.get('name')]
+            }
+          });
+          contentEl.dispatchEvent(customEvt);
+        }
       }
     },
     style: {
