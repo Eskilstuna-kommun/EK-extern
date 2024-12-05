@@ -753,8 +753,7 @@ const Legend = function Legend(options = {}) {
         viewer,
         cls: contentCls,
         style: contentStyle,
-        labelOpacitySlider,
-        statConf
+        labelOpacitySlider
       });
       visibleOverlaysCmp = VisibleOverlays({
         viewer, cls: `${contentCls} hidden`, style: contentStyle, labelOpacitySlider

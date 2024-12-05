@@ -20,8 +20,7 @@ const Overlays = function Overlays(options) {
     expanded = true,
     style: styleSettings = {},
     viewer,
-    labelOpacitySlider,
-    statConf
+    labelOpacitySlider
   } = options;
 
   const cls = `${clsSettings} o-layerswitcher-overlays flex row overflow-hidden`.trim();
@@ -37,7 +36,7 @@ const Overlays = function Overlays(options) {
 
   const groupCmps = viewer.getGroups().reduce((acc, group) => {
     if (nonGroupNames.includes(group.name)) return acc;
-    return acc.concat(Group(viewer, { ...group, statConf }));
+    return acc.concat(Group(viewer, group));
   }, []);
 
   groupCmps.forEach((groupCmp) => {
