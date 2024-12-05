@@ -609,6 +609,20 @@ const Legend = function Legend(options = {}) {
     }
   }
 
+  function postLayerStats(statsObj) {
+    const postOptions = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        layers: statsObj.layers,
+        ext: statConf.ext
+      })
+    };
+    fetch(statConf.url, postOptions);
+  }
+
   return Component({
     name,
     getLayerSwitcherCmp() {
@@ -711,6 +725,16 @@ const Legend = function Legend(options = {}) {
         e.stopPropagation();
         toggleVisibility();
       });
+      if (statConf) {
+        layerSwitcherEl.addEventListener('stats:layerlit', (e) => {
+          e.stopPropagation();
+          postLayerStats(e.detail);
+        });
+        layerSwitcherEl.addEventListener('stats:layerslit', (e) => {
+          e.stopPropagation();
+          postLayerStats(e.detail);
+        });
+      }
       window.addEventListener('resize', updateMaxHeight);
       if (layerControlCmps.length > 0) this.addButtonToTools(layerControl);
       if (searchLayersControl) this.addButtonToTools(layerSearchInput);

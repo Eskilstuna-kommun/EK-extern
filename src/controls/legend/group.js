@@ -28,8 +28,7 @@ const Group = function Group(viewer, options = {}) {
     zIndexStart = 0.1,
     opacityControl = false,
     zoomToExtent = false,
-    description,
-    statConf
+    description
   } = options;
 
   const stateCls = {
@@ -322,22 +321,19 @@ const Group = function Group(viewer, options = {}) {
           const layerNames = [];
           overlays.forEach((overlay) => {
             const layer = overlay.getLayer();
-            if (statConf) layerNames.push(layer.get('name'));
+            layerNames.push(layer.get('name'));
             layer.setVisible(true);
           });
-          if (statConf) {
-            const postOptions = {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                layers: layerNames,
-                ext: statConf.ext
-              })
-            };
-            fetch(statConf.url, postOptions);
-          }
+          const contentEl = document.getElementById(this.getId());
+          const statsEvent = 'stats:layerslit';
+          const customEvt = new CustomEvent(statsEvent, {
+            bubbles: true,
+            detail: {
+              layers: layerNames
+            }
+          });
+          contentEl.dispatchEvent(customEvt);
+
           const groups = groupList.getGroups();
           groups.forEach((group) => {
             if (!group.exclusive) {
