@@ -28,7 +28,8 @@ const Group = function Group(viewer, options = {}) {
     zIndexStart = 0.1,
     opacityControl = false,
     zoomToExtent = false,
-    description
+    description,
+    statConf
   } = options;
 
   const stateCls = {
@@ -318,10 +319,25 @@ const Group = function Group(viewer, options = {}) {
         });
         this.on('tick:all', () => {
           const overlays = groupList.getOverlays();
+          const layerNames = [];
           overlays.forEach((overlay) => {
             const layer = overlay.getLayer();
+            if (statConf) layerNames.push(layer.get('name'));
             layer.setVisible(true);
           });
+          if (statConf) {
+            const postOptions = {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                layers: layerNames,
+                ext: statConf.ext
+              })
+            };
+            fetch(statConf.url, postOptions);
+          }
           const groups = groupList.getGroups();
           groups.forEach((group) => {
             if (!group.exclusive) {
