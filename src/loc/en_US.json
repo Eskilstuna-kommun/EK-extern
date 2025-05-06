@@ -4,6 +4,7 @@
     "menuTitle": "Language",
     "controls": {
         "measure": {
+            "layerTitle": "Measure result",
             "mainButtonTooltip": "Measure",
             "startMeasureTooltip": "Click to start measuring",
             "lengthTooltip": "Length",
@@ -161,6 +162,16 @@
         },
         "about": {
             "title": "About the map"
+        },
+        "scalepicker": {
+            "selectScaleAriaLabel": "Pick scale"
+        },
+        "position": {
+            "characterError": "Invalid character for coordinate, please try again.",
+            "extentError": "The coordinates provided are not within the map's extent, please try again.",
+            "configError": "No title or projection was set for the position control",
+            "centerButtonLabel": "Position icon",
+            "projButtonLabel": "Projection"
         }
         
     },
