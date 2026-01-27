@@ -356,21 +356,22 @@ const Group = function Group(viewer, options = {}) {
           const layerNames = [];
           overlays.forEach((overlay) => {
             const layer = overlay.getLayer();
-            layerNames.push(layer.get('name'));
             if (!layer.get('secure')) {
               layer.setVisible(true);
+              layerNames.push(layer.get('name'));
             }
           });
-          const contentEl = document.getElementById(this.getId());
-          const statsEvent = 'stats:layerslit';
-          const customEvt = new CustomEvent(statsEvent, {
-            bubbles: true,
-            detail: {
-              layers: layerNames
-            }
-          });
-          contentEl.dispatchEvent(customEvt);
-
+          if (layerNames.length >= 1) {
+            const contentEl = document.getElementById(this.getId());
+            const statsEvent = 'stats:layerslit';
+            const customEvt = new CustomEvent(statsEvent, {
+              bubbles: true,
+              detail: {
+                layers: layerNames
+              }
+            });
+            contentEl.dispatchEvent(customEvt);
+          }
           const groups = groupList.getGroups();
           groups.forEach((group) => {
             if (!group.exclusive) {
