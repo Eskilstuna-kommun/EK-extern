@@ -357,7 +357,9 @@ const Group = function Group(viewer, options = {}) {
           overlays.forEach((overlay) => {
             const layer = overlay.getLayer();
             layerNames.push(layer.get('name'));
-            layer.setVisible(true);
+            if (!layer.get('secure')) {
+              layer.setVisible(true);
+            }
           });
           const contentEl = document.getElementById(this.getId());
           const statsEvent = 'stats:layerslit';
