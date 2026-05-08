@@ -369,7 +369,7 @@ async function getFeaturesFromRemote(requestOptions, viewer, textHtmlHandler) {
       });
     } else {
       console.warn(`GetFeatureInfo request failed for layer: ${layer.get('name')}`);
-      console.warn(result.reason)
+      console.warn(result.reason);
     }
   });
 
