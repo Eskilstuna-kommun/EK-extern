@@ -112,7 +112,7 @@ async function getFeatureInfoUrl({
 
       const jsonTargetUrl = new URL(getAbsoluteUrl(layer.getSource().getFeatureInfoUrl(coordinate, resolution, projection, jsonRequestParamObj)));
 
-      const jsonResponse = await fetch(jsonTargetUrl, {
+      const jsonResponse = await fetch(jsonTargetUrl.origin + jsonTargetUrl.pathname, {
         method: 'POST',
         headers: {
           'Content-type': 'application/x-www-form-urlencoded'
@@ -124,12 +124,18 @@ async function getFeatureInfoUrl({
 
     const featureCollection = maputils.geojsonToFeature(json);
 
-    const textFeatureInfoUrlString = layer.getSource().getFeatureInfoUrl(coordinate, resolution, projection, {
+    const textFeatureInfoUrl = new URL(getAbsoluteUrl(layer.getSource().getFeatureInfoUrl(coordinate, resolution, projection, {
       INFO_FORMAT: 'text/html',
       FEATURE_COUNT: '20'
-    });
+    })));
 
-    const htmlResponse = await fetch(textFeatureInfoUrlString, { method: 'GET' });
+    const htmlResponse = await fetch(textFeatureInfoUrl.origin + textFeatureInfoUrl.pathname, {
+      method: 'POST',
+      headers: {
+        'Content-type': 'application/x-www-form-urlencoded'
+      },
+      body: textFeatureInfoUrl.searchParams
+    });
     const html = await htmlResponse.text();
     const htmlDOM = new DOMParser().parseFromString(html, 'text/html');
 
@@ -363,6 +369,7 @@ async function getFeaturesFromRemote(requestOptions, viewer, textHtmlHandler) {
       });
     } else {
       console.warn(`GetFeatureInfo request failed for layer: ${layer.get('name')}`);
+      console.warn(result.reason);
     }
   });
 
