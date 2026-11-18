@@ -2,7 +2,7 @@ import { Feature as olFeature, Collection as olCollection, Overlay as olOverlay 
 import * as olGeom from 'ol/geom';
 import { fromCircle, fromExtent } from 'ol/geom/Polygon';
 import * as olInteraction from 'ol/interaction';
-import { createBox } from 'ol/interaction/Draw';
+import { createBox, createRegularPolygon } from 'ol/interaction/Draw';
 import * as olLayer from 'ol/layer';
 import * as olSource from 'ol/source';
 import * as olStyle from 'ol/style';
@@ -187,6 +187,7 @@ const Origo = function Origo(configPath, options = {}) {
 };
 
 olInteraction.Draw.createBox = createBox;
+olInteraction.Draw.createRegularPolygon = createRegularPolygon;
 olGeom.Polygon.fromCircle = fromCircle;
 olGeom.Polygon.fromExtent = fromExtent;
 Origo.controls = origoControls;
